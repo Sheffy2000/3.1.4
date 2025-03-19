@@ -1,4 +1,4 @@
-package ru.kata.spring.boot_security.demo.configs;
+package ru.kata.spring.boot_security.demo.config;
 
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,11 +15,11 @@ import java.util.Set;
 @Component
 public class DataBaseInitializer {
 
-    private RoleRepo roleRepo;
+    private final RoleRepo roleRepo;
 
-    private UserRepo userRepo;
+    private final UserRepo userRepo;
 
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public DataBaseInitializer(RoleRepo roleRepo, UserRepo userRepo, PasswordEncoder passwordEncoder) {

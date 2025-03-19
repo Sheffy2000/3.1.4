@@ -1,31 +1,25 @@
 package ru.kata.spring.boot_security.demo.service;
 
 
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.kata.spring.boot_security.demo.dao.UserDao;
 import ru.kata.spring.boot_security.demo.dao.UserRepo;
 import ru.kata.spring.boot_security.demo.model.User;
 
 import java.util.List;
 
 @Service
-public class UserServiceImpl implements UserService, UserDetailsService {
+public class UserServiceImpl implements UserService {
 
-    private UserDao userDao;
+    private final UserRepo userRepo;
 
-    private UserRepo userRepo;
-
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public UserServiceImpl(UserDao userDao, UserRepo userRepo, PasswordEncoder passwordEncoder) {
-        this.userDao = userDao;
+    public UserServiceImpl(UserRepo userRepo, PasswordEncoder passwordEncoder) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
     }
@@ -39,14 +33,14 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     @Override
     public void addUser(User user) {
         user.setPassword (passwordEncoder.encode (user.getPassword ()));
-        userDao.addUser (user);
+        userRepo.save(user);
     }
 
     @Transactional
     @Override
     public void updateUser(User user) {
         user.setPassword (passwordEncoder.encode (user.getPassword ()));
-        userDao.updateUser (user);
+        userRepo.save(user);
     }
 
     @Override
@@ -54,29 +48,17 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         return userRepo.findByUsername (username);
     }
 
-    @Transactional
     @Override
     public User getUserById(int id) {
-        return userDao.getUserById (id);
+        return userRepo.findById (id).orElseThrow (() -> new EntityNotFoundException ("Такого пользователя нет"));
     }
 
     @Transactional
     @Override
-    public void deleteUser(int id) {
-        userDao.deleteUser (id);
-    }
-
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepo.findByUsername (username);
-
-        if (user == null) {
-            System.out.println ("User not found: " + username);
-            throw new UsernameNotFoundException ("User not found: " + username);
+    public void deleteUser(User user) {
+        if (!userRepo.existsById(user.getId())) {
+            throw new EntityNotFoundException ("Такого пользователя нет");
         }
-
-        return user;
+        userRepo.delete(user);
     }
-
-
 }

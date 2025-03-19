@@ -1,10 +1,8 @@
 package ru.kata.spring.boot_security.demo.model;
 
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -18,12 +16,10 @@ import jakarta.validation.constraints.Size;
 import org.hibernate.proxy.HibernateProxy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import ru.kata.spring.boot_security.demo.validation.UniqueUsername;
 
-import java.io.Serializable;
 import java.util.Collection;
-import java.util.List;
 import java.util.Set;
-
 
 @Entity
 @Table(name = "Users")
@@ -51,10 +47,12 @@ public class User implements UserDetails {
     @Column
     private String password;
 
-    @Column
+    @UniqueUsername
+    @NotNull(message = "Имя пользователя не может быть пустым")
+    @Column(unique = true, nullable = false)
     private String username;
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany()
     @JoinTable(
             name = "User_Roles",
             joinColumns = @JoinColumn(name = "user_id"),
