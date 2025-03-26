@@ -33,14 +33,14 @@ public class UserServiceImpl implements UserService {
     @Override
     public void addUser(User user) {
         user.setPassword (passwordEncoder.encode (user.getPassword ()));
-        userRepo.save(user);
+        userRepo.save (user);
     }
 
     @Transactional
     @Override
     public void updateUser(User user) {
         user.setPassword (passwordEncoder.encode (user.getPassword ()));
-        userRepo.save(user);
+        userRepo.save (user);
     }
 
     @Override
@@ -56,9 +56,9 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Override
     public void deleteUser(User user) {
-        if (!userRepo.existsById(user.getId())) {
+        if (!userRepo.existsById (user.getId ())) {
             throw new EntityNotFoundException ("Такого пользователя нет");
         }
-        userRepo.delete(user);
+        userRepo.delete (user);
     }
 }

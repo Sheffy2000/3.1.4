@@ -9,8 +9,6 @@ import jakarta.persistence.Table;
 import org.hibernate.proxy.HibernateProxy;
 import org.springframework.security.core.GrantedAuthority;
 
-import java.util.Objects;
-
 @Entity
 @Table(name = "Roles")
 public class Role implements GrantedAuthority {

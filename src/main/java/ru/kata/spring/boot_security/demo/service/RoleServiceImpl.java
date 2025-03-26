@@ -5,8 +5,6 @@ import org.springframework.stereotype.Service;
 import ru.kata.spring.boot_security.demo.dao.RoleRepo;
 import ru.kata.spring.boot_security.demo.model.Role;
 
-import java.util.List;
-
 @Service
 public class RoleServiceImpl implements RoleService {
 
@@ -18,7 +16,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public List<Role> findAllRoles() {
-        return roleRepo.findAll();
+    public Role findRoleByName(String roleName) {
+        return roleRepo.findByName (roleName);
     }
 }

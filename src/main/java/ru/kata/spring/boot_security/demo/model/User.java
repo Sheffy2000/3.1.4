@@ -16,7 +16,6 @@ import jakarta.validation.constraints.Size;
 import org.hibernate.proxy.HibernateProxy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import ru.kata.spring.boot_security.demo.validation.UniqueUsername;
 
 import java.util.Collection;
 import java.util.Set;
@@ -47,7 +46,6 @@ public class User implements UserDetails {
     @Column
     private String password;
 
-    @UniqueUsername
     @NotNull(message = "Имя пользователя не может быть пустым")
     @Column(unique = true, nullable = false)
     private String username;
@@ -177,5 +175,17 @@ public class User implements UserDetails {
         return true;
     }
 
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", surname='" + surname + '\'' +
+                ", age=" + age +
+                ", password='" + password + '\'' +
+                ", username='" + username + '\'' +
+                ", roles=" + roles +
+                '}';
+    }
 }
 

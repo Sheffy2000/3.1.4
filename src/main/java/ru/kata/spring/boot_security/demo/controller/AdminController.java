@@ -2,25 +2,31 @@ package ru.kata.spring.boot_security.demo.controller;
 
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import ru.kata.spring.boot_security.demo.dao.RoleRepo;
-import ru.kata.spring.boot_security.demo.dao.UserRepo;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import ru.kata.spring.boot_security.demo.model.Role;
 import ru.kata.spring.boot_security.demo.model.User;
+import ru.kata.spring.boot_security.demo.model.UserDTO;
 import ru.kata.spring.boot_security.demo.service.RoleService;
 import ru.kata.spring.boot_security.demo.service.UserService;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-@Controller
+@RestController
+@RequestMapping("/api/users")
 public class AdminController {
 
     private final UserService userService;
@@ -32,90 +38,96 @@ public class AdminController {
         this.roleService = roleService;
     }
 
-    @GetMapping(value = "/admin")
-    public String printWelcomeForAdmin(Model model) {
-        List<User> allUsers = userService.showUsers ();
-        Authentication auth = SecurityContextHolder.getContext ().getAuthentication ();
-        String username = auth.getName ();
-        User activeUser = userService.findUserByUsername (username);
-        model.addAttribute ("users", allUsers);
-        model.addAttribute ("roles", roleService.findAllRoles());
-        model.addAttribute ("user", new User ());
-        model.addAttribute ("activeUser", activeUser);
-        return "AdminPage";
+    @GetMapping()
+    public List<User> getAllUsers() {
+        return userService.showUsers ();
     }
 
-    @GetMapping(value = "/addUser")
-    public String showUserInfo(Model model) {
-        model.addAttribute ("user", new User ());
-        model.addAttribute ("roles", roleService.findAllRoles());
-        return "userFormForAdd";
+    @GetMapping("/{id}")
+    public ResponseEntity<User> getUserById(@PathVariable int id) {
+        return ResponseEntity.ok (userService.getUserById (id));
     }
 
-    @PostMapping(value = "/addUser")
-    public String addUser(@Valid @ModelAttribute User user, BindingResult bindingResult, Model model) {
+    @PostMapping
+    public ResponseEntity<?> createUser(@Valid @RequestBody UserDTO userDTO, BindingResult bindingResult) {
+        System.out.println (userDTO);
         if (bindingResult.hasErrors ()) {
-            model.addAttribute ("roles", roleService.findAllRoles());
-            model.addAttribute ("user", user);
-            return "AdminPage";
+            Map<String, String> errors = new HashMap<> ();
+            bindingResult.getFieldErrors ().forEach (error ->
+                    errors.put (error.getField (), error.getDefaultMessage ()));
+            return ResponseEntity.badRequest ().body (errors);
         }
+
+        User user = new User ();
+        user.setName (userDTO.getName ());
+        user.setSurname (userDTO.getSurname ());
+        user.setAge (userDTO.getAge ());
+        user.setUsername (userDTO.getUsername ());
+        user.setPassword (userDTO.getPassword ());
+
+        Set<Role> roles = userDTO.getRoles ().stream ()
+                .map (role -> roleService.findRoleByName (role.getName ()))
+                .filter (Objects::nonNull)
+                .collect (Collectors.toSet ());
+
+        user.setRoles (roles);
+
+        if (userService.findUserByUsername (userDTO.getUsername ()) != null) {
+            Map<String, String> errors = new HashMap<> ();
+            errors.put ("username", "Логин уже занят");
+            return ResponseEntity.badRequest ().body (errors);
+        }
+
         userService.addUser (user);
-        return "redirect:/admin";
+        return ResponseEntity.ok (user);
     }
 
-    @PostMapping(value = "/editUser")
-    public String updateUser(@Valid @ModelAttribute User user, BindingResult bindingResult, Model model) {
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> editUserInfo(@PathVariable int id, @RequestBody @Valid UserDTO updatedUser, BindingResult bindingResult) {
+        System.out.println (updatedUser);
         if (bindingResult.hasErrors ()) {
-            List<User> allUsers = userService.showUsers ();
-            Authentication auth = SecurityContextHolder.getContext ().getAuthentication ();
-            String username = auth.getName ();
-            User activeUser = userService.findUserByUsername (username);
-            model.addAttribute ("users", allUsers);
-            model.addAttribute ("roles", roleService.findAllRoles());
-            model.addAttribute ("user", user);
-            model.addAttribute ("openEditModal", true);
-            model.addAttribute ("activeUser", activeUser);
-            return "AdminPage";
+            // Собираем все ошибки в Map
+            Map<String, String> errors = new HashMap<> ();
+            bindingResult.getFieldErrors ().forEach (error ->
+                    errors.put (error.getField (), error.getDefaultMessage ()));
+            return ResponseEntity.badRequest ().body (errors);
         }
-        userService.updateUser (user);
-        return "redirect:/admin";
+        User existingUser = userService.getUserById (id);
+
+        if (!(updatedUser.getUsername ().equals (existingUser.getUsername ()))) {
+            if (userService.findUserByUsername (updatedUser.getUsername ()) != null) {
+                Map<String, String> errors = new HashMap<> ();
+                errors.put ("username", "Это имя пользователя уже занято");
+                return ResponseEntity.badRequest ().body (errors);
+            }
+        }
+
+        existingUser.setName (updatedUser.getName ());
+        existingUser.setSurname (updatedUser.getSurname ());
+        existingUser.setAge (updatedUser.getAge ());
+        existingUser.setUsername (updatedUser.getUsername ());
+
+        // Если пароль не пустой, обновляем его
+        if (updatedUser.getPassword () != null && !updatedUser.getPassword ().isEmpty ()) {
+            existingUser.setPassword (updatedUser.getPassword ());
+        }
+
+        // Обновляем роли (загружаем их из базы перед присвоением)
+        Set<Role> updatedRoles = updatedUser.getRoles ().stream ()
+                .map (role -> roleService.findRoleByName (role.getName ())) // Загружаем роль из БД
+                .filter (Objects::nonNull)
+                .collect (Collectors.toSet ());
+
+        existingUser.setRoles (updatedRoles);
+        userService.updateUser (existingUser);
+        return ResponseEntity.ok (existingUser);
     }
 
-    @GetMapping("/editUser")
-    public String updateInfo(@RequestParam("id") int id, Model model) {
-        User user = userService.getUserById (id);
-        List<User> allUsers = userService.showUsers ();
-        Authentication auth = SecurityContextHolder.getContext ().getAuthentication ();
-        String username = auth.getName ();
-        User activeUser = userService.findUserByUsername (username);
-        model.addAttribute ("user", user);
-        model.addAttribute ("roles", roleService.findAllRoles());
-        model.addAttribute ("openEditModal", true);
-        model.addAttribute ("activeUser", activeUser);
-        model.addAttribute ("users", allUsers);
 
-        return "adminPage";
-    }
-
-    @GetMapping("deleteUser")
-    public String deleteUser(@RequestParam("id") int id, Model model) {
-        User user = userService.getUserById (id);
-        List<User> allUsers = userService.showUsers ();
-        Authentication auth = SecurityContextHolder.getContext ().getAuthentication ();
-        String username = auth.getName ();
-        User activeUser = userService.findUserByUsername (username);
-        model.addAttribute ("user", user);
-        model.addAttribute ("roles", roleService.findAllRoles());
-        model.addAttribute ("openDeleteModal", true);
-        model.addAttribute ("activeUser", activeUser);
-        model.addAttribute ("users", allUsers);
-
-        return "adminPage";
-    }
-
-    @PostMapping("deleteUser")
-    public String deleteUser(@ModelAttribute User user) {
-        userService.deleteUser (user);
-        return "redirect:/admin";
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable int id) {
+        userService.deleteUser (userService.getUserById (id));
+        return ResponseEntity.ok ().build ();
     }
 }
