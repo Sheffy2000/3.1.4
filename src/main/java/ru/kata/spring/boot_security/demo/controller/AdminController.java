@@ -21,21 +21,16 @@ import ru.kata.spring.boot_security.demo.service.UserService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
 public class AdminController {
 
     private final UserService userService;
-    private final RoleService roleService;
 
     @Autowired
-    public AdminController(UserService userService, RoleService roleService) {
+    public AdminController(UserService userService) {
         this.userService = userService;
-        this.roleService = roleService;
     }
 
     @GetMapping()
@@ -50,7 +45,6 @@ public class AdminController {
 
     @PostMapping
     public ResponseEntity<?> createUser(@Valid @RequestBody UserDTO userDTO, BindingResult bindingResult) {
-        System.out.println (userDTO);
         if (bindingResult.hasErrors ()) {
             Map<String, String> errors = new HashMap<> ();
             bindingResult.getFieldErrors ().forEach (error ->
@@ -58,70 +52,21 @@ public class AdminController {
             return ResponseEntity.badRequest ().body (errors);
         }
 
-        User user = new User ();
-        user.setName (userDTO.getName ());
-        user.setSurname (userDTO.getSurname ());
-        user.setAge (userDTO.getAge ());
-        user.setUsername (userDTO.getUsername ());
-        user.setPassword (userDTO.getPassword ());
-
-        Set<Role> roles = userDTO.getRoles ().stream ()
-                .map (role -> roleService.findRoleByName (role.getName ()))
-                .filter (Objects::nonNull)
-                .collect (Collectors.toSet ());
-
-        user.setRoles (roles);
-
-        if (userService.findUserByUsername (userDTO.getUsername ()) != null) {
-            Map<String, String> errors = new HashMap<> ();
-            errors.put ("username", "Логин уже занят");
-            return ResponseEntity.badRequest ().body (errors);
-        }
-
-        userService.addUser (user);
-        return ResponseEntity.ok (user);
+        userService.addUser (userDTO);
+        return ResponseEntity.ok (userDTO);
     }
 
 
     @PutMapping("/{id}")
     public ResponseEntity<?> editUserInfo(@PathVariable int id, @RequestBody @Valid UserDTO updatedUser, BindingResult bindingResult) {
-        System.out.println (updatedUser);
         if (bindingResult.hasErrors ()) {
-            // Собираем все ошибки в Map
             Map<String, String> errors = new HashMap<> ();
             bindingResult.getFieldErrors ().forEach (error ->
                     errors.put (error.getField (), error.getDefaultMessage ()));
             return ResponseEntity.badRequest ().body (errors);
         }
-        User existingUser = userService.getUserById (id);
-
-        if (!(updatedUser.getUsername ().equals (existingUser.getUsername ()))) {
-            if (userService.findUserByUsername (updatedUser.getUsername ()) != null) {
-                Map<String, String> errors = new HashMap<> ();
-                errors.put ("username", "Это имя пользователя уже занято");
-                return ResponseEntity.badRequest ().body (errors);
-            }
-        }
-
-        existingUser.setName (updatedUser.getName ());
-        existingUser.setSurname (updatedUser.getSurname ());
-        existingUser.setAge (updatedUser.getAge ());
-        existingUser.setUsername (updatedUser.getUsername ());
-
-        // Если пароль не пустой, обновляем его
-        if (updatedUser.getPassword () != null && !updatedUser.getPassword ().isEmpty ()) {
-            existingUser.setPassword (updatedUser.getPassword ());
-        }
-
-        // Обновляем роли (загружаем их из базы перед присвоением)
-        Set<Role> updatedRoles = updatedUser.getRoles ().stream ()
-                .map (role -> roleService.findRoleByName (role.getName ())) // Загружаем роль из БД
-                .filter (Objects::nonNull)
-                .collect (Collectors.toSet ());
-
-        existingUser.setRoles (updatedRoles);
-        userService.updateUser (existingUser);
-        return ResponseEntity.ok (existingUser);
+        userService.updateUser (id, updatedUser);
+        return ResponseEntity.ok (updatedUser);
     }
 
 
@@ -130,4 +75,5 @@ public class AdminController {
         userService.deleteUser (userService.getUserById (id));
         return ResponseEntity.ok ().build ();
     }
+
 }
