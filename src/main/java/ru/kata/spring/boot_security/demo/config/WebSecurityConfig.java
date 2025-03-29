@@ -32,6 +32,7 @@ public class WebSecurityConfig {
                 .csrf ().disable ()
                 .authorizeHttpRequests (auth -> auth
                         .requestMatchers ("/admin/**").hasRole ("ADMIN")
+                        .requestMatchers ("/api/users/**").hasRole ("ADMIN")
                         .requestMatchers ("/user/**").hasAnyRole ("ADMIN", "USER")
                         .anyRequest ().authenticated ()
                 )
